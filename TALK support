@@ -1,0 +1,90 @@
+
+import numpy
+import pprint
+class SENTENCE():
+    punctuations = '''!()-[]{};:'"\,<>./?@#$%^&*_~'''
+    memory_matrix_rows=4
+    memory_matrix_columns=10
+    ascii_matrix_columns=10  # its the length of binary input
+    
+    def __init__(self):
+        self.number_of_words=0 # number of words in a sentence    
+        
+    
+    def RemovePunctuations(self,my_str):
+        #also converts it to lower case
+        self.my_str=my_str
+        # remove punctuations from the string
+        self.no_punct = ""
+        for char in my_str:
+           if char not in SENTENCE.punctuations:
+               self.no_punct = self.no_punct + char
+        # conver to lower case and display the unpunctuated string
+        self.no_punct_lower=self.no_punct.lower()
+        print(self.no_punct_lower)
+        return (self.no_punct_lower)
+    
+    def SeparateWords(self,my_str):
+        #self.my_str=my_str
+        print('words separated')
+        print(my_str.split())
+        return my_str.split()
+
+    def NumberofWords(self,my_str):
+        self.words=my_str  #['how','are','you']
+        self.number_of_words= (len(self.words))
+        #print(self.words)
+        #input()
+        self.len_of_longestword=len(max(self.words,key=len))
+        print (self.len_of_longestword)
+        input('len of max word\n')
+        
+
+    def Length_of_each_word(self,k):
+        self.length_of_each_word=[0]*self.number_of_words
+        for i in range (0,self.number_of_words):
+            self.length_of_each_word[i]=len(list(k[i]))
+
+    def Ascii_Matrix(self):
+        #self.ascii_matrix = [[[0 for k in range(SENTENCE.ascii_matrix_columns)] for j in range(self.len_of_longestword)] for i in range(self.number_of_words)]
+        self.ascii_matrix = numpy.zeros((self.number_of_words,self.len_of_longestword,SENTENCE.ascii_matrix_columns))
+        #pprint.pprint (self.ascii_matrix )
+        for i in range(0,self.number_of_words):
+            word=list(self.words[i])  # it has the current word under consideration
+            for j in range(0,self.length_of_each_word[i]):
+                bin_character=self.Converting_char_2binary(word[j])
+                self.ascii_matrix[i,j,:]=bin_character
+        print('3D matrix . each row is a letter. each matrix is a word. number of words = number of matrices \n')
+        pprint.pprint (self.ascii_matrix )    
+
+
+    def Converting_char_2binary(self,x):
+        #x is a char input . FUNCTION TAKES A CHAR AND RETURNS ITS BINARY THAT I MADE
+        y=[0]*SENTENCE.ascii_matrix_columns
+        if ord(x)>=97 and ord(x)<=105:
+            m=0
+            n=97
+        elif ord(x)>=106 and ord(x)<=113:
+            m=1
+            n=106
+        elif ord(x)>=114 and ord(x)<=120:
+            m=2
+            n=114
+        elif ord(x)>=121 and ord(x)<=124:
+            m=3
+            n=121
+        y[m]=1
+        #print (y)
+        #print((ord(x)),n,m)
+        #y[(ord(x)-n)+m+1]=1
+        #print (y)
+        return y
+
+'''print(no_punct.split())
+k=no_punct.split()
+print(list(k[0]))
+print(list(k[1]))
+''' 
+
+
+        
