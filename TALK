@@ -1,0 +1,26 @@
+
+import sys
+import operator
+import math
+import time
+import numpy
+#from numpy import *
+
+
+
+from TALK_support import *
+def main():
+    my_str = input("Enter a sentence: ")
+    sentence1=SENTENCE()  # object of class 
+    sent1=sentence1.RemovePunctuations(my_str) # also makes lower case
+    sent2=sentence1.SeparateWords(sent1) #sent2= ['how','are','you']
+    #print (sentence1.number_of_words)
+    sentence1.NumberofWords(sent2)
+    #print (sentence1.number_of_words)
+    sentence1.Length_of_each_word(sent2)
+    #print (sentence1.length_of_each_word)
+    #print(sentence1.words)
+    sentence1.Ascii_Matrix()  # self.ascii_matrix has ascii matrix now !!
+    #connection_matrix1=SENTENCE.Connection_Matrix(
+if __name__ == '__main__':
+  main()
