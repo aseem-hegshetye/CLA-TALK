@@ -1,4 +1,3 @@
-
 import numpy
 import pprint
 class SENTENCE():
@@ -76,7 +75,7 @@ class SENTENCE():
         y[m]=1
         #print (y)
         #print((ord(x)),n,m)
-        #y[(ord(x)-n)+m+1]=1
+        y[(ord(x)-n)+m+1]=1
         #print (y)
         return y
 
