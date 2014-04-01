@@ -1,11 +1,230 @@
+
 import numpy
 import pprint
+import sys
+import operator
+import math
+import time
 class SENTENCE():
     punctuations = '''!()-[]{};:'"\,<>./?@#$%^&*_~'''
     memory_matrix_rows=4
-    memory_matrix_columns=10
-    ascii_matrix_columns=10  # its the length of binary input
+    memory_matrix_columns=50
+    ascii_matrix_columns=10  # its the length of binary input. i have written a code to set it up. so dont change this number, its not flexible
+    percentage_of_on_bits_sdr=10
+    threshold=1  #connection strength threshold
     
+
+    
+    on_bits_sdr=math.floor((percentage_of_on_bits_sdr) * (memory_matrix_columns/100))
+    #print(on_bits_sdr)
+    #print('on_bits_sdr' )
+
+    def Memory_Matrix_1(self,synapse_matrix_one):
+        self.memory_matrix_1=numpy.zeros((self.number_of_words,SENTENCE.memory_matrix_rows,SENTENCE.memory_matrix_columns))
+        for wrd in range(0,self.number_of_words):
+            
+            self.memory_matrix_1[wrd,0,:]=self.sdr_matrix_1[wrd,0,:]*1
+            new_memory_matrix=self.memory_matrix_1[wrd,:,:]*0
+            #print(self.sdr_matrix_1)
+            #input('above was sdr matrix 1 ' )
+            #print(self.memory_matrix_1)
+            #input('above was mem matrix 1 ' )
+            history_matrix=self.memory_matrix_1[wrd,:,:]*1
+            for rw in range(1,self.len_of_longestword):
+                prediction_matrix=SENTENCE.Next_prediction(history_matrix,synapse_matrix_one)
+                #history_matrix=history_matrix*0    
+                for col in range(0,SENTENCE.memory_matrix_columns):
+                    if self.sdr_matrix_1[wrd,rw,col]>0:
+                        self.memory_matrix_1[wrd,numpy.argmax(prediction_matrix[1:,col])+1,col]=1
+                        new_memory_matrix[numpy.argmax(prediction_matrix[1:,col])+1,col]=1
+                        #print (new_memory_matrix)
+                        #input('above is new_memory_matrix ')
+                        
+                synapse_matrix_one=SENTENCE.strengthening_synapse(synapse_matrix_one,history_matrix,new_memory_matrix)
+                history_matrix=new_memory_matrix*1
+                new_memory_matrix=new_memory_matrix*0
+        return(synapse_matrix_one)
+
+    def Memory_Matrix_2(self,synapse_matrix_two):
+        self.memory_matrix_2=numpy.zeros((SENTENCE.memory_matrix_rows,SENTENCE.memory_matrix_columns))
+        
+            
+        self.memory_matrix_2[0,:]=self.sdr_matrix_2[0,:]*1
+        new_memory_matrix=self.memory_matrix_2[:,:]*0
+        #print(self.sdr_matrix_2)
+        #input('above was sdr matrix 2 ' )
+        #print(self.memory_matrix_2)
+        #input('above was mem matrix 2 ' )
+        history_matrix=self.memory_matrix_2[:,:]*1
+        for rw in range(1,self.number_of_words):
+            prediction_matrix=SENTENCE.Next_prediction(history_matrix,synapse_matrix_two)
+            #history_matrix=history_matrix*0    
+            for col in range(0,SENTENCE.memory_matrix_columns):
+                if self.sdr_matrix_2[rw,col]>0:
+                    self.memory_matrix_2[numpy.argmax(prediction_matrix[1:,col])+1,col]=1
+                    new_memory_matrix[numpy.argmax(prediction_matrix[1:,col])+1,col]=1
+                    #print (new_memory_matrix)
+                    #input('above is new_memory_matrix ')
+                    
+            synapse_matrix_two=SENTENCE.strengthening_synapse(synapse_matrix_two,history_matrix,new_memory_matrix)
+            history_matrix=new_memory_matrix*1
+            new_memory_matrix=new_memory_matrix*0
+        return(synapse_matrix_two)		
+		
+
+
+    def strengthening_synapse(synapse_matrix,history_matrix,memory_matrix):
+        m=SENTENCE.memory_matrix_rows
+        n=SENTENCE.memory_matrix_columns
+        
+        for j in range(0,(m*n)):
+            if memory_matrix.flat[j]>0:
+                for i in range(0,(m*n)):
+                    if history_matrix.flat[i]>0:
+                        ''' OLD PATCH
+                        temp=synapse_matrix[i,:,:]
+                        #if i!=j:
+                        if temp.flat[j] <SENTENCE.threshold:
+                                temp.flat[j]=temp.flat[j]+1
+                                synapse_matrix[i,:,:]=temp
+			'''
+                        #strengthening the whole column with next cell
+
+                        (row,col)=SENTENCE.row_column_from_flatinput(m,n,i) # row is 0-m... column is 0-n		
+                        for r in range(0,m):
+                            i=(r*n)+col
+                            temp=synapse_matrix[i,:,:]
+                        #if i!=j:
+                            if temp.flat[j] <SENTENCE.threshold:
+                                temp.flat[j]=temp.flat[j]+0.2
+                                synapse_matrix[i,:,:]=temp
+        return (synapse_matrix)
+
+    def Next_prediction(history_matrix,synapse_matrix):
+	# RETURNS A "MATRIX" (it may have more than required columns active and also more cells per column active.. !! loads of prediction)
+	#OF NEXT PREDICTION.
+        trial2=history_matrix*0
+        for i in range(0,SENTENCE.memory_matrix_rows*SENTENCE.memory_matrix_columns):
+            if history_matrix.flat[i]>0:
+                trial2=trial2+synapse_matrix[i,:,:]
+        return trial2
+
+    def Sdr_Matrix_3(self,connection_matrix_3):
+        #build SDR matrix 3
+        connection_matrix_zero_3=SENTENCE.replacing_nan_with_zero(connection_matrix_3)
+        self.sdr_matrix_3 = numpy.zeros((SENTENCE.memory_matrix_columns))
+        
+        for bit in range(0,SENTENCE.memory_matrix_columns):
+            self.sdr_matrix_3[bit]=sum(sum((connection_matrix_zero_3[bit,:,:]*(self.memory_matrix_2[:,:]))))
+            #multiplication is weird in python 3.3. one multiplication will give one SDR2 bit. after forming all bits in one row
+            # we will take top bits now and then strengthen there connections
+        self.sdr_matrix_3[:]=SENTENCE.top_bit(self.sdr_matrix_3[:],SENTENCE.on_bits_sdr)
+
+            #   strengthening CM
+        '''
+        for bitt in range(0,SENTENCE.memory_matrix_columns):
+            if self.sdr_matrix_3[bitt]==1:
+                connection_matrix_3[bitt,:,:]=connection_matrix_3[bitt,:,:]+((self.memory_matrix_2[:,:])/5)
+                    #keeping it below threshold
+                for coll in range(0,SENTENCE.memory_matrix_columns):
+                    for rrw in range(0,SENTENCE.memory_matrix_rows):
+                        if connection_matrix_3[bitt,rrw,coll]> SENTENCE.threshold:
+                            connection_matrix_3[bitt,rrw,coll]=SENTENCE.threshold
+                            #input('\nthreshold in SDR matrix 3 reached\n')
+            '''
+        return(connection_matrix_3)
+
+    def Sdr_Matrix_2(self,connection_matrix_2):
+        #build SDR matrix 2
+        connection_matrix_zero_2=SENTENCE.replacing_nan_with_zero(connection_matrix_2)
+        self.sdr_matrix_2 = numpy.zeros((self.number_of_words,SENTENCE.memory_matrix_columns))
+        for row in range(0,self.number_of_words):
+            for bit in range(0,SENTENCE.memory_matrix_columns):
+                self.sdr_matrix_2[row,bit]=sum(sum((connection_matrix_zero_2[bit,:,:]*(self.memory_matrix_1[row,:,:]))))
+                #multiplication is weird in python 3.3. one multiplication will give one SDR2 bit. after forming all bits in one row
+                # we will take top bits now and then strengthen there connections
+            self.sdr_matrix_2[row,:]=SENTENCE.top_bit(self.sdr_matrix_2[row,:],SENTENCE.on_bits_sdr)
+
+                #   strengthening CM
+            '''
+            for bitt in range(0,SENTENCE.memory_matrix_columns):
+                if self.sdr_matrix_2[row,bitt]==1:
+                    connection_matrix_2[bitt,:,:]=connection_matrix_2[bitt,:,:]+(self.memory_matrix_1[row,:,:]/5)
+                        #keeping it below threshold
+                    for coll in range(0,SENTENCE.memory_matrix_columns):
+                        for rrw in range(0,SENTENCE.memory_matrix_rows):
+                            if connection_matrix_2[bitt,rrw,coll]> SENTENCE.threshold:
+                                connection_matrix_2[bitt,rrw,coll]=SENTENCE.threshold
+                '''
+        return(connection_matrix_2)
+    
+
+    def Sdr_Matrix_1(self,connection_matrix_1):
+        #build SDR matrix 1
+        connection_matrix_zero_1=SENTENCE.replacing_nan_with_zero(connection_matrix_1)
+        #print('connection matrix replaced NAN with zero')
+        #print(connection_matrix_zero_1)
+        self.sdr_matrix_1 = numpy.zeros((self.number_of_words,self.len_of_longestword,SENTENCE.memory_matrix_columns))
+        #print('SRD_matrix_1 initialized to zero')
+        #print(self.sdr_matrix_1)
+        for wrd in range(0,self.number_of_words):
+            for row in range(0,self.len_of_longestword):
+                
+                self.sdr_matrix_1[wrd,row,:]=sum((connection_matrix_zero_1*(self.ascii_matrix[wrd,row,:])).T)
+                #multiplication is weird in python 3.3
+                self.sdr_matrix_1[wrd,row,:]=SENTENCE.top_bit(self.sdr_matrix_1[wrd,row,:],SENTENCE.on_bits_sdr)
+
+                #   strengthening CM
+                '''
+                for bitt in range(0,SENTENCE.memory_matrix_columns):
+                    if self.sdr_matrix_1[wrd,row,bitt]==1:
+                        connection_matrix_1[bitt,:]=connection_matrix_1[bitt,:]+(self.ascii_matrix[wrd,row,:]/10)
+                        #keeping it below threshold
+                        for coll in range(0,SENTENCE.ascii_matrix_columns):
+                            if connection_matrix_1[bitt,coll]> SENTENCE.threshold:
+                                connection_matrix_1[bitt,coll]=SENTENCE.threshold
+                '''
+
+        
+
+        #print('sdr_matrix_1 ')
+        #print(self.sdr_matrix_1)
+        #print('connection_matrix_zero_1')
+        #print(connection_matrix_zero_1)
+        #print('self.ascii_matrix')
+        #print(self.ascii_matrix)
+        return(connection_matrix_1)
+            
+        
+
+
+        
+    
+    def Connection_Matrix_1(connection_matrix):
+        #setting 50% of connections to NAN
+        for i in range(0,SENTENCE.memory_matrix_columns):
+            for count in range(0,numpy.int(math.floor(0.5*SENTENCE.ascii_matrix_columns))):
+                while True:
+                    rand_num=numpy.random.random_integers(0,SENTENCE.ascii_matrix_columns-1)
+                    if (numpy.isnan(connection_matrix[i,rand_num]))== False:
+		#if that connection is not already a NAN then set it as NAN and also increase the count, else just continue iterations without increasing the count
+                        connection_matrix[i,rand_num]=numpy.nan
+                        break
+				
+        return (connection_matrix)
+
+    def Connection_Matrix_2(connection_matrix):
+        for third_dimension in range(0,SENTENCE.memory_matrix_columns):
+            for i in range(0,SENTENCE.memory_matrix_rows):
+                for count in range(0,numpy.int(math.floor(0.5*SENTENCE.memory_matrix_columns))):
+                    while True:
+                        rand_num=numpy.random.random_integers(0,SENTENCE.memory_matrix_columns-1)
+                        if (numpy.isnan(connection_matrix[third_dimension,i,rand_num]))== False:
+                            connection_matrix[third_dimension,i,rand_num]=numpy.nan
+                            break
+				
+        return (connection_matrix)
+				    
     def __init__(self):
         self.number_of_words=0 # number of words in a sentence    
         
@@ -20,13 +239,13 @@ class SENTENCE():
                self.no_punct = self.no_punct + char
         # conver to lower case and display the unpunctuated string
         self.no_punct_lower=self.no_punct.lower()
-        print(self.no_punct_lower)
+        #print(self.no_punct_lower)
         return (self.no_punct_lower)
     
     def SeparateWords(self,my_str):
         #self.my_str=my_str
-        print('words separated')
-        print(my_str.split())
+        #print('words separated')
+        #print(my_str.split())
         return my_str.split()
 
     def NumberofWords(self,my_str):
@@ -35,8 +254,8 @@ class SENTENCE():
         #print(self.words)
         #input()
         self.len_of_longestword=len(max(self.words,key=len))
-        print (self.len_of_longestword)
-        input('len of max word\n')
+        #print (self.len_of_longestword)
+        #input('len of max word\n')
         
 
     def Length_of_each_word(self,k):
@@ -53,8 +272,8 @@ class SENTENCE():
             for j in range(0,self.length_of_each_word[i]):
                 bin_character=self.Converting_char_2binary(word[j])
                 self.ascii_matrix[i,j,:]=bin_character
-        print('3D matrix . each row is a letter. each matrix is a word. number of words = number of matrices \n')
-        pprint.pprint (self.ascii_matrix )    
+        #print('ascii matrix \n')
+        #pprint.pprint (self.ascii_matrix )    
 
 
     def Converting_char_2binary(self,x):
@@ -78,6 +297,47 @@ class SENTENCE():
         y[(ord(x)-n)+m+1]=1
         #print (y)
         return y
+
+
+    def replacing_nan_with_zero(connection_matrix):
+        matrx=connection_matrix+(connection_matrix*0)
+	#PYTHON DOESNT HAVE PASS BY VALUE, AND I DONT WANT IT TO MODULATTE CONNECTION MATRIX BY REPLACING NAN. 
+	#THIS NEW MATRX IS RETURNED AND IS STORED IN CONNECTION_MATRIX_ZERO
+        if len(matrx.shape)==3:
+            for i in range(0,matrx.shape[0]):
+                for j in range(0,matrx.shape[1]):
+                    for k in range(0,matrx.shape[2]):
+                        if numpy.isnan(matrx[i,j,k]):
+                            matrx[i,j,k]=0
+        elif len(matrx.shape)==2:
+            for i in range(0,matrx.shape[0]):
+                for j in range(0,matrx.shape[1]):
+                    if numpy.isnan(matrx[i,j]):
+                        matrx[i,j]=0
+                                    
+        return matrx
+
+    def top_bit(vect_in,num):
+        temp= vect_in*0
+        if sum(vect_in)>0:
+            vect=vect_in+(vect_in*0)
+            #CREATED A NEW OBJECT SO THAT THE PASSED ORIGINAL VECTOR IS UNCHANGED
+            for count in range(0,num):
+                index_to_change=numpy.argmax(vect)
+                #temp[index_to_change]=vect[index_to_change]
+                temp[index_to_change]=1   # SETS TOP BITS 1
+                vect[index_to_change]=0
+        return (temp)
+
+
+    def row_column_from_flatinput(numberofrows,numberofcolumns,flatinput): # row is 0-m... column is 0-n
+        for r in range (0,numberofrows):
+            for c in range(0,numberofcolumns):
+                if flatinput==(r*numberofcolumns)+c:
+                    row = r
+                    column = c
+        return (row,column)
+
 
 '''print(no_punct.split())
 k=no_punct.split()
