@@ -12,3 +12,5 @@ Its totally a CORTICAL LERNING ALGORITHM. implementation is little different fro
 Next part of this code will be a motor output. THe computer will respond with a sentence to the user. Regerating a sentence from this higher order SDR is in progress.
 
 PYTHON 3.3 and Numpy Required !!!!
+
+Numpy can be found here http://www.lfd.uci.edu/~gohlke/pythonlibs/
